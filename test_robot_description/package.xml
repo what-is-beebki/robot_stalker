@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<package format='2'>
+  <name>test_robot_description</name>
+  <version>0.0.0</version>
+  <description>Model of the robot for introductory lecture</description>
+
+  <maintainer email="petr.sorokoumov@gmail.com">Petr Sorokoumov</maintainer>
+
+  <license>TODO</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <!--depend>hector_sensors_description</depend-->
+  <export>
+  </export>
+</package>
