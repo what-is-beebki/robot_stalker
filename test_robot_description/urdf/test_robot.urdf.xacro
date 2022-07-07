@@ -108,6 +108,11 @@
         <child link="caster_link"/>
     </joint>
     
+    <gazebo reference="caster_link">
+        <mu1>0.01</mu1>
+        <mu2>0.01</mu2>
+    </gazebo>
+    
     <link name="camera_box">
         <visual>
             <geometry>

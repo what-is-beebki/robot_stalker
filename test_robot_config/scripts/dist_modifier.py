@@ -36,6 +36,15 @@ class Modifier(object):
                 i.transform.translation.x = i.transform.translation.x * k
                 i.transform.translation.y = i.transform.translation.y * k
                 i.transform.translation.z = i.transform.translation.z * k
+                
+                for j in [0, 1, 2, 3]:
+                    i.rect.cornerTranslates[j].x = i.rect.cornerTranslates[j].x * k
+                    i.rect.cornerTranslates[j].y = i.rect.cornerTranslates[j].y * k
+                    i.rect.cornerTranslates[j].z = i.rect.cornerTranslates[j].z * k
+                    
+                    i.contour.contourTranslates[j].x = i.contour.contourTranslates[j].x * k
+                    i.contour.contourTranslates[j].y = i.contour.contourTranslates[j].y * k
+                    i.contour.contourTranslates[j].z = i.contour.contourTranslates[j].z * k
         return
         
     def simple_obj_sub_cb(self, msg):

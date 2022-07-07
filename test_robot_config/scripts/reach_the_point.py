@@ -3,7 +3,7 @@ import math
 
 import rospy
 
-from geometry_msgs.msg import Twist, Point, Quaternion
+from geometry_msgs.msg import Transform, Twist, Point, Quaternion
 from gazebo_msgs.msg import LinkStates
 from sensor_msgs.msg import JointState
 from std_msgs.msg import Float64
@@ -20,15 +20,16 @@ class FSM(object):
         
         self.robot_link = rospy.get_param('~robot_link', 'test_robot::base_link')        
     #координаты и ориентация робота в odom
-        self.body_abs_x = 0.
-        self.body_abs_y = 0.
-        self.body_abs_angle = 0.
+        self.body_odom_x = 0.
+        self.body_odom_y = 0.
+        self.body_odom_angle = 0.
     #разность абсолютных координат цели и робота
-        self.dest_rel_x = None
-        self.dest_rel_y = None
+        self.marker_minus_robot_x = None
+        self.marker_minus_robot_y = None
     #координаты цели в odom
-        self.dest_abs_x = None
-        self.dest_abs_y = None
+        self.marker_odom_x = None
+        self.marker_odom_y = None
+        self.marker_odom_angle = None
     # угол поворота камеры в системе координат робота
         self.camera_angle = 0.   
     #задаётся публикацией в camera_yaw_controller/command
@@ -64,7 +65,7 @@ class FSM(object):
                                             
         self.odom_sub = rospy.Subscriber('/mobile_base_controller/odom', Odometry, self.cb_odom)
         self.cam_pos_sub = rospy.Subscriber('/joint_states', JointState, self.cb_cam_pos)
-        self.dest_sub = rospy.Subscriber('/destination', Point, self.cb_dest) # теперь тут координаты в odom
+        self.dest_sub = rospy.Subscriber('/destination', Transform, self.cb_dest) # теперь тут координаты в odom
         
         self.timer = rospy.Timer(rospy.Duration(0.1), self.cb_timer)
         
@@ -76,14 +77,14 @@ class FSM(object):
         
     def cb_odom(self, msg):
         
-        self.body_abs_x = msg.pose.pose.position.x
-        self.body_abs_y = msg.pose.pose.position.y
+        self.body_odom_x = msg.pose.pose.position.x
+        self.body_odom_y = msg.pose.pose.position.y
         
         quat = [msg.pose.pose.orientation.x,
                 msg.pose.pose.orientation.y,
                 msg.pose.pose.orientation.z,
                 msg.pose.pose.orientation.w]
-        self.body_abs_angle = euler_from_quaternion(quat)[2]
+        self.body_odom_angle = euler_from_quaternion(quat)[2] #см индекс
         #почему
         
         return
@@ -100,27 +101,33 @@ class FSM(object):
     
     def cb_dest(self, msg):
     #определить координаты цели в системе координат робота
-        self.dest_abs_x = msg.x
-        self.dest_abs_y = msg.y
+        self.marker_odom_x = msg.translation.x
+        self.marker_odom_y = msg.translation.y
         
-        self.dest_rel_x = self.dest_abs_x - self.body_abs_x
-        self.dest_rel_y = self.dest_abs_y - self.body_abs_y
+        quat = [msg.rotation.x,
+                msg.rotation.y,
+                msg.rotation.z,
+                msg.rotation.w]
+        self.marker_odom_angle = euler_from_quaternion(quat)[2]
+        
+        self.marker_minus_robot_x = self.marker_odom_x - self.body_odom_x
+        self.marker_minus_robot_y = self.marker_odom_y - self.body_odom_y
         #rospy.logerr("\tx\ty")
-        #rospy.logerr("dest\t{:.3f}\t{:.3f}".format(self.dest_abs_x, self.dest_abs_y))
-        #rospy.logerr("body\t{:.3f}\t{:.3f}".format(self.body_abs_x, self.body_abs_y))
-        #rospy.logerr("diff\t{:.3f}\t{:.3f}".format(self.dest_rel_x, self.dest_rel_y))
+        #rospy.logerr("dest\t{:.3f}\t{:.3f}".format(self.marker_odom_x, self.marker_odom_y))
+        #rospy.logerr("body\t{:.3f}\t{:.3f}".format(self.body_odom_x, self.body_odom_y))
+        #rospy.logerr("diff\t{:.3f}\t{:.3f}".format(self.marker_minus_robot_x, self.marker_minus_robot_y))
         return
     
     def goal_dir(self):
-        #rospy.logerr("goal_dir: dest_rel_x is {:.6f}; dest_rel_y is {:.6f}"
-                     #.format(self.dest_rel_x, self.dest_rel_y))
+        #rospy.logerr("goal_dir: marker_minus_robot_x is {:.6f}; marker_minus_robot_y is {:.6f}"
+                     #.format(self.marker_minus_robot_x, self.marker_minus_robot_y))
         #rospy.logerr("goal_dir: abs direction is {:.6f}; body direction is {:.6f}"
-                     #.format(math.atan2(self.dest_rel_y, self.dest_rel_x), self.body_abs_angle))
-        #всё это считается не иначе как через задницу
-        return angle_diff(math.atan2(self.dest_rel_y, self.dest_rel_x), self.body_abs_angle) 
+                     #.format(math.atan2(self.marker_minus_robot_y, self.marker_minus_robot_x), self.body_odom_angle))
+     
+        return angle_diff(math.atan2(self.marker_minus_robot_y, self.marker_minus_robot_x), self.body_odom_angle) 
     
     def do_i_see(self):
-        if self.dest_abs_x is None:
+        if self.marker_odom_x is None:
             return False
         else:
             return True
@@ -147,7 +154,7 @@ class FSM(object):
     
     def is_it_near(self):
     #цель условно достигнута
-        if math.hypot(self.dest_rel_x, self.dest_rel_y) < 0.2:
+        if math.hypot(self.marker_minus_robot_x, self.marker_minus_robot_y) < 0.2:
             return True
         else:
             return False
@@ -294,6 +301,8 @@ class FSM(object):
             self.is_camera_placed = self.is_it_zero()
             self.is_body_directed = self.may_i_go()
             self.is_goal_reached  = self.is_it_near()
+            
+            rospy.logwarn("body: {:.3f}\tmarker: {:.3f}".format(self.body_odom_angle, self.marker_odom_angle))
         except TypeError:
             pass
         
