@@ -29,6 +29,9 @@ class Modifier(object):
                 dy_px = y2_px - y1_px
                 
                 real_dist = self.marker_size * self.focus_px / dy_px
+                #rospy.logwarn("m_size: {:.3f}; focus_px: {:.3f}; height_px: {:.3f}".format(self.marker_size, self.focus_px, dy_px))
+                #rospy.logwarn("real_dist: {:.3f}".format(real_dist))
+                
                 k = real_dist / math.hypot(i.transform.translation.x, i.transform.translation.y, i.transform.translation.z)
                 
                 #rospy.logwarn("before: {:.3f}; after: {:.3f}".format( math.hypot(i.transform.translation.x, i.transform.translation.y, i.transform.translation.z),real_dist))

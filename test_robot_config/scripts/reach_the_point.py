@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import math
-
+from numpy import array, dot
+from fsm_description import FSM
+from wheels_and_eye import Actions
 import rospy
 
 from geometry_msgs.msg import Transform, Twist, Point, Quaternion
@@ -15,65 +17,46 @@ def angle_diff(a1, a2):
     diff = a1 - a2
     return (diff + math.pi) % (2 * math.pi) - math.pi
 
-class FSM(object):
+
+class robot_stalker(object):
     def __init__(self):
+        
+        self.fsm = FSM()
+        self.act = Actions()
         
         self.robot_link = rospy.get_param('~robot_link', 'test_robot::base_link')        
     #координаты и ориентация робота в odom
         self.body_odom_x = 0.
         self.body_odom_y = 0.
         self.body_odom_angle = 0.
-    #разность абсолютных координат цели и робота
+    #разность координат цели и робота в odom
         self.marker_minus_robot_x = None
         self.marker_minus_robot_y = None
-    #координаты цели в odom
+    #координаты маркера в odom
         self.marker_odom_x = None
         self.marker_odom_y = None
         self.marker_odom_angle = None
+    #целевое положение в odom
+        self.target_odom_x = None
+        self.target_odom_y = None
+    #разность координат целевого положения и робота
+        self.target_minus_robot_x = None
+        self.target_minus_robot_y = None
     # угол поворота камеры в системе координат робота
         self.camera_angle = 0.   
     #задаётся публикацией в camera_yaw_controller/command
+    #вектор, на который робот смещается относительно цели при преследовании
+        self.shift_vector = [rospy.get_param('~shift_back', 1.), rospy.get_param('~shift_right', 0.5)]
     #узнаётся из /joint_states - зачем, если я же его и задала?
-        self.SMALL_ANGLE = 0.05
-        self.BIGGER_ANGLE = 0.4
-        
-        
-        self.is_goal_visible  = False
-        self.is_camera_stares = False   # камера смотрит прямо на цель
-        self.is_camera_placed = False   # камера повёрнута на 0 градусов
-    # два флага выше истинны <=> тело направлено точно на цель
-        self.is_body_directed = False   # тело направлено почти на цель
-        self.is_goal_reached  = False
-        
-        self.current_state = 'init'
-            #init
-            #search
-            #aiming
-            #steering
-            #moving
-            #stop
-        
-        self.velocity_msg = Twist()
-        self.velocity_pub = rospy.Publisher('mobile_base_controller/cmd_vel',
-                                            Twist,
-                                            queue_size=1)
-        
-        self.cam_pos_msg = Float64()
-        self.cam_pos_pub = rospy.Publisher('camera_yaw_controller/command',
-                                            Float64,
-                                            queue_size=1)
+        self.SMALL_ANGLE = 0.05 #погрешность наведения камеры
+        self.BIGGER_ANGLE = 0.4 
+        self.SMALL_DIST = 0.1   #погрешность положения тела - чтобы работала нормально, нужно настроить фильтр, чтобы он не скакал как чёрт
                                             
         self.odom_sub = rospy.Subscriber('/mobile_base_controller/odom', Odometry, self.cb_odom)
         self.cam_pos_sub = rospy.Subscriber('/joint_states', JointState, self.cb_cam_pos)
-        self.dest_sub = rospy.Subscriber('/destination', Transform, self.cb_dest) # теперь тут координаты в odom
+        self.dest_sub = rospy.Subscriber('/destination', Transform, self.cb_dest) #координаты в odom
         
         self.timer = rospy.Timer(rospy.Duration(0.1), self.cb_timer)
-        
-        self.error_cam_len = 5
-        self.error_body_len = 5
-        
-        self.error_cam_angle = [0.] * self.error_cam_len
-        self.error_body_angle = [0.] * self.error_body_len
         
     def cb_odom(self, msg):
         
@@ -84,11 +67,10 @@ class FSM(object):
                 msg.pose.pose.orientation.y,
                 msg.pose.pose.orientation.z,
                 msg.pose.pose.orientation.w]
-        self.body_odom_angle = euler_from_quaternion(quat)[2] #см индекс
-        #почему
+        self.body_odom_angle = euler_from_quaternion(quat)[2] #yaw
         
         return
-        
+    
     def cb_cam_pos(self, msg):
     #чтение позиции камеры
         try:
@@ -109,31 +91,48 @@ class FSM(object):
                 msg.rotation.z,
                 msg.rotation.w]
         self.marker_odom_angle = euler_from_quaternion(quat)[2]
+        theta = self.marker_odom_angle
         
         self.marker_minus_robot_x = self.marker_odom_x - self.body_odom_x
         self.marker_minus_robot_y = self.marker_odom_y - self.body_odom_y
-        #rospy.logerr("\tx\ty")
-        #rospy.logerr("dest\t{:.3f}\t{:.3f}".format(self.marker_odom_x, self.marker_odom_y))
+        rot_matrix = array([[math.sin(theta), math.cos(theta)], 
+                            [-math.cos(theta), math.sin(theta)]])
+        rot_shift_vector = dot(rot_matrix, self.shift_vector)
+        self.target_odom_x = self.marker_odom_x + rot_shift_vector[0]
+        self.target_odom_y = self.marker_odom_y + rot_shift_vector[1]
+        self.target_minus_robot_x = self.target_odom_x - self.body_odom_x
+        self.target_minus_robot_y = self.target_odom_y - self.body_odom_y
+        #rospy.logerr("\t\tx\ty")
+        #rospy.logerr("marker\t{:.3f}\t{:.3f}".format(self.marker_odom_x, self.marker_odom_y))
+        #rospy.logerr("shift\t{:.3f}\t{:.3f}".format(rot_shift_vector[0], rot_shift_vector[1]))
+        #rospy.logerr("target\t{:.3f}\t{:.3f}".format(self.target_odom_x, self.target_odom_y))
         #rospy.logerr("body\t{:.3f}\t{:.3f}".format(self.body_odom_x, self.body_odom_y))
-        #rospy.logerr("diff\t{:.3f}\t{:.3f}".format(self.marker_minus_robot_x, self.marker_minus_robot_y))
+        #rospy.logerr("diff\t{:.3f}\t{:.3f}".format(self.target_minus_robot_x, self.target_minus_robot_y))
         return
     
-    def goal_dir(self):
-        #rospy.logerr("goal_dir: marker_minus_robot_x is {:.6f}; marker_minus_robot_y is {:.6f}"
+    def marker_dir(self):
+        #относительное направление робота на маркер
+        #rospy.logerr("marker_dir: marker_minus_robot_x is {:.6f}; marker_minus_robot_y is {:.6f}"
                      #.format(self.marker_minus_robot_x, self.marker_minus_robot_y))
-        #rospy.logerr("goal_dir: abs direction is {:.6f}; body direction is {:.6f}"
+        #rospy.logerr("marker_dir: abs direction is {:.6f}; body direction is {:.6f}"
                      #.format(math.atan2(self.marker_minus_robot_y, self.marker_minus_robot_x), self.body_odom_angle))
      
         return angle_diff(math.atan2(self.marker_minus_robot_y, self.marker_minus_robot_x), self.body_odom_angle) 
+    
+    def target_dir(self):
+        #относительное направление робота на целевое положение
+     
+        return angle_diff(math.atan2(self.target_minus_robot_y, self.target_minus_robot_x), self.body_odom_angle)
     
     def do_i_see(self):
         if self.marker_odom_x is None:
             return False
         else:
             return True
+        
     def do_i_stare(self):
     #True, если направление камеры на цель примерно ноль
-        if abs(angle_diff(self.goal_dir(), self.camera_angle)) < self.SMALL_ANGLE:
+        if abs(angle_diff(self.marker_dir(), self.camera_angle)) < self.SMALL_ANGLE:
             return True
         else:
             return False
@@ -147,177 +146,46 @@ class FSM(object):
     
     def may_i_go(self):
     #True, если тело +- наведено
-        if abs(self.goal_dir()) < self.BIGGER_ANGLE:
+        if abs(self.target_dir()) < self.BIGGER_ANGLE:
             return True
         else:
             return False
     
     def is_it_near(self):
     #цель условно достигнута
-        if math.hypot(self.marker_minus_robot_x, self.marker_minus_robot_y) < 0.2:
+        if math.hypot(self.target_minus_robot_x, self.target_minus_robot_y) < self.SMALL_DIST:
             return True
         else:
             return False
     
-    def switch_state(self):
-        if self.current_state == 'init':
-            if self.is_goal_reached:
-                self.current_state = 'stop'
-                return
-                
-            if self.is_goal_visible:
-                self.current_state = 'aiming'
-                return
-            else:
-                self.current_state = 'search'
-                return
-        elif self.current_state == 'search':
-            if self.is_goal_visible:
-                self.current_state = 'aiming'
-                return
-        elif self.current_state == 'aiming':
-            if not self.is_goal_visible:
-                self.current_state = 'search'
-                return
-                
-            if self.is_body_directed:
-                self.current_state = 'steering'
-                return
-            if self.is_goal_reached:
-                self.current_state = 'stop'
-                return
-            return
-        elif self.current_state == 'steering':
-            if not self.is_goal_visible:
-                self.current_state = 'search'
-                return
-            if not self.is_body_directed:
-                self.current_state = 'aiming'
-                return
-            if self.is_camera_stares and self.is_camera_placed:
-                self.current_state = 'moving'
-                return
-            if self.is_goal_reached:
-                self.current_state = 'stop'
-                return
-            return
-        elif self.current_state == 'moving':
-            if not self.is_goal_visible:
-                self.current_state = 'search'
-                return
-                
-            if  (not self.is_camera_stares) or (not self.is_camera_placed):
-                self.current_state = 'steering'
-                return
-            if self.is_goal_reached:
-                self.current_state = 'stop'
-            return 
-        #'stop'
-    
-    def summ(self, array):
-        s = 0.
-        for i in array:
-            s += i
-        return s
-    
-    def cam_pid(self, err):
-        del self.error_cam_angle[0]
-        self.error_cam_angle.append(err)
-        p = 0.25
-        i = 0.3
-        d = 0.5
-        dt = 0.1
-        
-        pp = p * self.error_cam_angle[-1]
-        ii = i * self.error_cam_len * dt * self.summ(self.error_cam_angle)
-        dd = d * (self.error_cam_angle[-1] - self.error_cam_angle[-2]) / dt
-        
-        #rospy.logerr("cam_pid: err: {:.6f}; p: {:.6f}; i: {:.6f}; d: {:.6f}".format(err, pp, ii, dd))
-        signal = pp + ii + dd
-        return signal
-    
-    def rot_pid(self, err):
-        del self.error_body_angle[0]
-        self.error_body_angle.append(err)
-        p = 0.25
-        i = 0.3
-        d = 0.5
-        dt = 0.1
-        
-        pp = p * self.error_body_angle[-1]
-        ii = i * self.error_body_len * dt * self.summ(self.error_body_angle)
-        dd = d * (self.error_body_angle[-1] - self.error_body_angle[-2]) / dt
-        
-        #rospy.logerr("rot_pid: err: {:.6f}; p: {:.6f}; i: {:.6f}; d: {:.6f}".format(err, pp, ii, dd))
-        signal = pp + ii + dd
-        return signal
-    
-    def act_accordingly(self):
-    #выбор действия в зависимости от состояния
-        if self.current_state == 'init':
-            pass
-        elif self.current_state == 'search':
-            pass
-            #крутить камерой и собой туда-сюда пока не наступит конец света
-            
-        elif self.current_state == 'aiming':
-        #Вращать основание. Камера смотрит прямо на цель
-            try:
-                
-                self.cam_pos_msg.data = self.camera_angle + self.cam_pid(angle_diff(self.goal_dir(), self.camera_angle))
-                self.cam_pos_pub.publish(self.cam_pos_msg)
-            except TypeError:
-                pass
-            self.velocity_msg.angular.z = self.rot_pid(self.goal_dir())
-            
-            self.velocity_msg.linear.x = 0.
-            self.velocity_pub.publish(self.velocity_msg)
-            
-        elif self.current_state == 'steering':
-        #подруливать на ходу
-            #self.cam_pos_msg.data = self.goal_dir()
-            try:
-                self.cam_pos_msg.data = self.camera_angle + self.cam_pid(angle_diff(self.goal_dir(), self.camera_angle))
-                self.cam_pos_pub.publish(self.cam_pos_msg)
-            except TypeError:
-                pass
-            self.velocity_msg.angular.z = self.rot_pid(self.goal_dir())
-            self.velocity_msg.linear.x = 0.05
-            self.velocity_pub.publish(self.velocity_msg)
-            
-        elif self.current_state == 'moving':
-        #полный вперёд
-        
-            self.velocity_msg.angular.z = 0
-            self.velocity_msg.linear.x = 0.1
-            self.velocity_pub.publish(self.velocity_msg)
-    
     def cb_timer(self, e):
     #обновление флагов + смена состояния
-        self.is_goal_visible  = self.do_i_see()
-        
+        self.fsm.is_goal_visible  = self.do_i_see()
         try:
-            self.is_camera_stares = self.do_i_stare()
-            self.is_camera_placed = self.is_it_zero()
-            self.is_body_directed = self.may_i_go()
-            self.is_goal_reached  = self.is_it_near()
+            self.fsm.is_camera_stares = self.do_i_stare()
+            self.fsm.is_camera_placed = self.is_it_zero()
+            self.fsm.is_body_directed = self.may_i_go()
+            self.fsm.is_goal_reached  = self.is_it_near()
             
-            rospy.logwarn("body: {:.3f}\tmarker: {:.3f}".format(self.body_odom_angle, self.marker_odom_angle))
+            #rospy.logwarn("body: {:.3f}\tmarker: {:.3f}".format(self.body_odom_angle, self.marker_odom_angle))
         except TypeError:
             pass
         
-        self.previous_state = self.current_state
-        self.switch_state()
-        if self.previous_state != self.current_state:
+        self.fsm.previous_state = self.fsm.current_state
+        self.fsm.switch_state()
+        if self.fsm.previous_state != self.fsm.current_state:
             rospy.logerr('flags: {} {} {} {} {}; state: {}'
-                        .format(self.is_goal_visible, self.is_camera_stares, self.is_camera_placed, self.is_body_directed, self.is_goal_reached, self.current_state))
-        self.act_accordingly()
+                        .format(self.fsm.is_goal_visible, self.fsm.is_camera_stares, self.fsm.is_camera_placed, self.fsm.is_body_directed, self.fsm.is_goal_reached, self.fsm.current_state))
+        try:
+            self.act.act_accordingly(self.fsm.current_state, self.marker_dir(), self.target_dir(), self.camera_angle)
+        except TypeError:
+            pass
         return
 
 if __name__ == '__main__':
     try:
         rospy.init_node('reach_the_point')
-        f_s_m = FSM()
+        robot = robot_stalker()
         rospy.spin()
     except rospy.exceptions.ROSInterruptException:
         pass

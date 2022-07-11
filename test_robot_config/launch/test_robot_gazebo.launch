@@ -43,7 +43,7 @@
         <arg name="z" value="0.2"/>
         <arg name="R" value="0"/>
         <arg name="P" value="0"/>
-        <arg name="Y" value="0.785"/>
+        <arg name="Y" value="1.04719755119"/>
     </include>
     
     <node pkg="gazebo_ros" type="spawn_model" name="spawn_urdf" 
@@ -99,7 +99,10 @@
     <!--<node pkg="tf" type="static_transform_publisher" name="static_cam_pub"
     args="0 0 0 -1.57 0 -1.57 map cam_optical_link 100"/>-->
     
-    <node pkg="test_robot_config" type="reach_the_point.py" name="reach_the_point" output="screen"/>
+    <node pkg="test_robot_config" type="reach_the_point.py" name="reach_the_point" output="screen">
+        <rosparam param="shift_back">1.0</rosparam>
+        <rosparam param="shift_right">0.0</rosparam>
+    </node>
     <node pkg="test_robot_config" type="estimate_dest.py" name="estimate_dest" output="screen" />
     <node pkg="test_robot_config" type="dist_modifier.py" name="dist_modifier" output="screen" />
     
