@@ -157,7 +157,12 @@ class robot_stalker(object):
             return True
         else:
             return False
-    
+    def am_i_straight(self):
+    #робот ориентирован правильно    
+        if abs(angle_diff(self.body_odom_angle, self.marker_odom_angle + math.pi / 2)) < self.SMALL_ANGLE:
+            return True
+        else:
+            return False
     def cb_timer(self, e):
     #обновление флагов + смена состояния
         self.fsm.is_goal_visible  = self.do_i_see()
@@ -166,6 +171,7 @@ class robot_stalker(object):
             self.fsm.is_camera_placed = self.is_it_zero()
             self.fsm.is_body_directed = self.may_i_go()
             self.fsm.is_goal_reached  = self.is_it_near()
+            self.fsm.is_ori_proper    = self.am_i_straight()
             
             #rospy.logwarn("body: {:.3f}\tmarker: {:.3f}".format(self.body_odom_angle, self.marker_odom_angle))
         except TypeError:
@@ -177,7 +183,7 @@ class robot_stalker(object):
             rospy.logerr('flags: {} {} {} {} {}; state: {}'
                         .format(self.fsm.is_goal_visible, self.fsm.is_camera_stares, self.fsm.is_camera_placed, self.fsm.is_body_directed, self.fsm.is_goal_reached, self.fsm.current_state))
         try:
-            self.act.act_accordingly(self.fsm.current_state, self.marker_dir(), self.target_dir(), self.camera_angle)
+            self.act.act_accordingly(self.fsm.current_state, self.marker_dir(), self.target_dir(), self.camera_angle, self.marker_odom_angle, self.body_odom_angle)
         except TypeError:
             pass
         return

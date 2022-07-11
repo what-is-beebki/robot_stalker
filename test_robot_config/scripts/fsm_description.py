@@ -6,9 +6,10 @@ class FSM(object):
         self.is_goal_visible  = False
         self.is_camera_stares = False   # камера смотрит прямо на цель
         self.is_camera_placed = False   # камера повёрнута на 0 градусов
-    # два флага выше истинны <=> тело направлено точно на цель
-        self.is_body_directed = False   # тело направлено почти на цель
-        self.is_goal_reached  = False
+                                        # два флага выше истинны <=> тело направлено точно на цель
+        self.is_body_directed = False   # тело ориентировано почти на цель
+        self.is_goal_reached  = False   # цель приемлемо близко
+        self.is_ori_proper    = False   # тело ориентировано параллельно маркеру
         
         self.current_state = 'init'
             #init
@@ -25,7 +26,7 @@ class FSM(object):
     def switch_state(self):
         if self.current_state == 'init':
             if self.is_goal_reached:
-                self.current_state = 'stop'
+                self.current_state = 'posing'
                 return
                 
             if self.is_goal_visible:
@@ -47,7 +48,7 @@ class FSM(object):
                 self.current_state = 'steering'
                 return
             if self.is_goal_reached:
-                self.current_state = 'stop'
+                self.current_state = 'posing'
                 return
             return
         elif self.current_state == 'steering':
@@ -61,7 +62,7 @@ class FSM(object):
                 self.current_state = 'moving'
                 return
             if self.is_goal_reached:
-                self.current_state = 'stop'
+                self.current_state = 'posing'
                 return
             return
         elif self.current_state == 'moving':
@@ -73,6 +74,17 @@ class FSM(object):
                 self.current_state = 'steering'
                 return
             if self.is_goal_reached:
-                self.current_state = 'stop'
+                self.current_state = 'posing'
+            return 
+        elif self.current_state == 'posing':
+            if not self.is_goal_visible:
+                self.current_state = 'search'
+                return
+                
+            if  (not self.is_goal_reached):
+                self.current_state = 'steering'
+                return
+            if self.is_ori_proper:
+                self.current_state = 'following'
             return 
         #'stop'

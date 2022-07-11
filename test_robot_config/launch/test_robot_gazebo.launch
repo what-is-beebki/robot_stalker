@@ -38,7 +38,7 @@
     <include file="$(find polygone_aruco_objects)/launch/flat_object.launch">
         <arg name="name" value="marker"/>
         <arg name="aruco_id" value="13"/>
-        <arg name="x" value="3."/>
+        <arg name="x" value="6."/>
         <arg name="y" value="0."/>
         <arg name="z" value="0.2"/>
         <arg name="R" value="0"/>
@@ -93,6 +93,7 @@
         <remap from="simple_objects" to="simple_objects_true"/>
         <rosparam param="tracked_objects_type_names">[Aruco4]</rosparam>
         <rosparam param="mahalanobis_max">[10]</rosparam>
+        <rosparam param="k_decay">0.8</rosparam>
         <!--<rosparam param="tracked_objects_id">[{Aruco4: 13}]</rosparam>-->
     </node>
     <!-- я не знаю что тут происходит но эта штука отображает в rviz оси координат ?камеры-->
