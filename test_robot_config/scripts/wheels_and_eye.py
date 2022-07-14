@@ -103,14 +103,14 @@ class Actions(object):
             except TypeError:
                 pass
             self.velocity_msg.angular.z = self.rot_pid(to_target_angle)
-            self.velocity_msg.linear.x = 0.15
+            self.velocity_msg.linear.x = 0.25
             self.velocity_pub.publish(self.velocity_msg)
             
         elif state == 'moving':
         #полный вперёд
         
             self.velocity_msg.angular.z = 0
-            self.velocity_msg.linear.x = 0.3
+            self.velocity_msg.linear.x = 0.4
             self.velocity_pub.publish(self.velocity_msg)
             
         elif state == 'posing':
@@ -124,3 +124,12 @@ class Actions(object):
             self.velocity_msg.angular.z = self.rot_pid(angle_diff(target_ori + math.pi / 2, my_ori))
             self.velocity_msg.linear.x = 0.
             self.velocity_pub.publish(self.velocity_msg)
+        elif state == 'following':
+        #преследовать
+            try:
+                #rospy.logwarn("cam_angle: {:.3f}; cam_err: {:.3f}".format(cam_angle, cam_err))
+                self.cam_pos_msg.data = cam_angle + self.cam_pid(cam_err)
+                self.cam_pos_pub.publish(self.cam_pos_msg)
+            except TypeError:
+                pass
+            

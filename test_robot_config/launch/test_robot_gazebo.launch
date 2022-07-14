@@ -38,7 +38,7 @@
     <include file="$(find polygone_aruco_objects)/launch/flat_object.launch">
         <arg name="name" value="marker"/>
         <arg name="aruco_id" value="13"/>
-        <arg name="x" value="6."/>
+        <arg name="x" value="4."/>
         <arg name="y" value="0."/>
         <arg name="z" value="0.2"/>
         <arg name="R" value="0"/>
@@ -106,6 +106,7 @@
     </node>
     <node pkg="test_robot_config" type="estimate_dest.py" name="estimate_dest" output="screen" />
     <node pkg="test_robot_config" type="dist_modifier.py" name="dist_modifier" output="screen" />
+    <node pkg="test_robot_config" type="marker_moves.py" name="marker_moves" output="screen" />
     
     <!--<node pkg="test_robot_config" type="detect_the_marker.py" name="detect_the_marker" output="screen"/>-->
     

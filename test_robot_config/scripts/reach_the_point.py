@@ -4,8 +4,10 @@ from numpy import array, dot
 from fsm_description import FSM
 from wheels_and_eye import Actions
 import rospy
+import tf2_ros
 
-from geometry_msgs.msg import Transform, Twist, Point, Quaternion
+from geometry_msgs.msg import TransformStamped, Transform, Twist, Point, Quaternion
+
 from gazebo_msgs.msg import LinkStates
 from sensor_msgs.msg import JointState
 from std_msgs.msg import Float64
@@ -50,11 +52,13 @@ class robot_stalker(object):
     #узнаётся из /joint_states - зачем, если я же его и задала?
         self.SMALL_ANGLE = 0.05 #погрешность наведения камеры
         self.BIGGER_ANGLE = 0.4 
-        self.SMALL_DIST = 0.1   #погрешность положения тела - чтобы работала нормально, нужно настроить фильтр, чтобы он не скакал как чёрт
+        self.BIGGER_DIST = 0.2
+        self.SMALL_DIST = 0.05   #погрешность положения тела - чтобы работала нормально, нужно настроить фильтр, чтобы он не скакал как чёрт
                                             
         self.odom_sub = rospy.Subscriber('/mobile_base_controller/odom', Odometry, self.cb_odom)
         self.cam_pos_sub = rospy.Subscriber('/joint_states', JointState, self.cb_cam_pos)
         self.dest_sub = rospy.Subscriber('/destination', Transform, self.cb_dest) #координаты в odom
+        self.tf_broadcaster = tf2_ros.TransformBroadcaster()
         
         self.timer = rospy.Timer(rospy.Duration(0.1), self.cb_timer)
         
@@ -82,7 +86,7 @@ class robot_stalker(object):
         return
     
     def cb_dest(self, msg):
-    #определить координаты цели в системе координат робота
+    #определить координаты маркера и целевого положения в системе координат робота
         self.marker_odom_x = msg.translation.x
         self.marker_odom_y = msg.translation.y
         
@@ -108,6 +112,18 @@ class robot_stalker(object):
         #rospy.logerr("target\t{:.3f}\t{:.3f}".format(self.target_odom_x, self.target_odom_y))
         #rospy.logerr("body\t{:.3f}\t{:.3f}".format(self.body_odom_x, self.body_odom_y))
         #rospy.logerr("diff\t{:.3f}\t{:.3f}".format(self.target_minus_robot_x, self.target_minus_robot_y))
+        t = TransformStamped()
+                
+        t.header.stamp = rospy.Time.now()
+        t.header.frame_id = 'odom'
+        t.child_frame_id = 'target_pos'
+        
+        t.transform.translation.x = self.target_odom_x
+        t.transform.translation.y = self.target_odom_y
+        t.transform.rotation.w    = 1
+        
+        self.tf_broadcaster.sendTransform(t)
+        
         return
     
     def marker_dir(self):
@@ -157,6 +173,12 @@ class robot_stalker(object):
             return True
         else:
             return False
+    def am_i_lost(self):
+    #робот ориентирован правильно    
+        if math.hypot(self.target_minus_robot_x, self.target_minus_robot_y) > self.BIGGER_DIST:
+            return True
+        else:
+            return False
     def am_i_straight(self):
     #робот ориентирован правильно    
         if abs(angle_diff(self.body_odom_angle, self.marker_odom_angle + math.pi / 2)) < self.SMALL_ANGLE:
@@ -171,6 +193,7 @@ class robot_stalker(object):
             self.fsm.is_camera_placed = self.is_it_zero()
             self.fsm.is_body_directed = self.may_i_go()
             self.fsm.is_goal_reached  = self.is_it_near()
+            self.fsm.is_goal_far      = self.am_i_lost()
             self.fsm.is_ori_proper    = self.am_i_straight()
             
             #rospy.logwarn("body: {:.3f}\tmarker: {:.3f}".format(self.body_odom_angle, self.marker_odom_angle))
