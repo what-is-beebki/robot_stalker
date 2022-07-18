@@ -18,7 +18,6 @@ class FSM(object):
             #aiming
             #steering
             #moving
-            #!posing
             #!following
             #stop
     
@@ -27,7 +26,7 @@ class FSM(object):
     def switch_state(self):
         if self.current_state == 'init':
             if self.is_goal_reached:
-                self.current_state = 'posing'
+                self.current_state = 'following'
                 return
                 
             if self.is_goal_visible:
@@ -49,7 +48,7 @@ class FSM(object):
                 self.current_state = 'steering'
                 return
             if self.is_goal_reached:
-                self.current_state = 'posing'
+                self.current_state = 'following'
                 return
             return
         elif self.current_state == 'steering':
@@ -63,7 +62,7 @@ class FSM(object):
                 self.current_state = 'moving'
                 return
             if self.is_goal_reached:
-                self.current_state = 'posing'
+                self.current_state = 'following'
                 return
             return
         elif self.current_state == 'moving':
@@ -75,19 +74,8 @@ class FSM(object):
                 self.current_state = 'steering'
                 return
             if self.is_goal_reached:
-                self.current_state = 'posing'
-            return 
-        elif self.current_state == 'posing':
-            if not self.is_goal_visible:
-                self.current_state = 'search'
-                return
-                
-            if  self.is_goal_far:
-                self.current_state = 'steering'
-                return
-            if self.is_ori_proper:
                 self.current_state = 'following'
-            return
+            return 
         elif self.current_state == 'following':
             if self.is_goal_far:
                 self.current_state = 'steering'

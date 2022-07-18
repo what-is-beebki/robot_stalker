@@ -53,7 +53,7 @@ class robot_stalker(object):
         self.SMALL_ANGLE = 0.05 #погрешность наведения камеры
         self.BIGGER_ANGLE = 0.4 
         self.BIGGER_DIST = 0.2
-        self.SMALL_DIST = 0.05   #погрешность положения тела - чтобы работала нормально, нужно настроить фильтр, чтобы он не скакал как чёрт
+        self.SMALL_DIST = 0.1   #погрешность положения тела - чтобы работала нормально, нужно настроить фильтр, чтобы он не скакал как чёрт
                                             
         self.odom_sub = rospy.Subscriber('/mobile_base_controller/odom', Odometry, self.cb_odom)
         self.cam_pos_sub = rospy.Subscriber('/joint_states', JointState, self.cb_cam_pos)
