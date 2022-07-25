@@ -208,7 +208,7 @@ class robot_stalker(object):
         try:
             self.act.act_accordingly(self.fsm.current_state, self.marker_dir(), self.target_dir(), self.camera_angle, self.marker_odom_angle, self.body_odom_angle)
         except TypeError:
-            pass
+            self.act.act_accordingly(self.fsm.current_state, None, None, self.camera_angle, self.marker_odom_angle, self.body_odom_angle)
         return
 
 if __name__ == '__main__':

@@ -73,16 +73,19 @@ class Actions(object):
     
     def act_accordingly(self, state, to_marker_angle, to_target_angle, cam_angle, target_ori, my_ori):
     #выбор действия в зависимости от состояния
-        cam_err = angle_diff(to_marker_angle, cam_angle)
         #rospy.logerr("to marker angle: {:.3f}; cam angle: {:.3f}".format(to_marker_angle, cam_angle))
         if state == 'init':
             pass
         elif state == 'search':
-            pass
-            #крутить камерой и собой туда-сюда пока не наступит конец света
+            self.velocity_msg.angular.z = 0.5
+            
+            self.velocity_msg.linear.x = 0.
+            
+            self.velocity_pub.publish(self.velocity_msg)
             
         elif state == 'aiming':
         #Вращать основание. Камера смотрит прямо на цель
+            cam_err = angle_diff(to_marker_angle, cam_angle)
             self.cam_pos_msg.data = cam_angle + self.cam_pid(cam_err)
             self.cam_pos_pub.publish(self.cam_pos_msg)
             
@@ -94,6 +97,7 @@ class Actions(object):
             
         elif state == 'steering':
         #подруливать на ходу
+            cam_err = angle_diff(to_marker_angle, cam_angle)
             self.cam_pos_msg.data = cam_angle + self.cam_pid(cam_err)
             self.cam_pos_pub.publish(self.cam_pos_msg)
             
@@ -111,6 +115,8 @@ class Actions(object):
         
         elif state == 'following':
         #преследовать
+            cam_err = angle_diff(to_marker_angle, cam_angle)
             self.cam_pos_msg.data = cam_angle + self.cam_pid(cam_err)
             self.cam_pos_pub.publish(self.cam_pos_msg)
+            #усовершенствовать состояние - сделать скорость робота равной скорости маркера
             
