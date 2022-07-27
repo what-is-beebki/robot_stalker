@@ -1,29 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <launch>
-    
-    <param name="robot_description" 
-           command="$(find xacro)/xacro --inorder '$(find test_robot_description)/urdf/test_robot.urdf.xacro'"/>
-    
-    <node pkg="robot_state_publisher" type="robot_state_publisher" name="robot_state_publisher"/>
-    <node pkg="odom_gazebo_republisher" type="odom_republisher.py" name="odometry_tf_republisher">
-        <remap from="odom" to="/mobile_base_controller/odom"/>
-    </node>
-    
-    <!--<include file="$(find gazebo_ros)/launch/empty_world.launch">
-    <arg name="debug" value="False" />
-    <arg name="gui" value="True" />
-    <arg name="paused" value="False"/>
-    <arg name="use_sim_time" value="True"/>
-    <arg name="headless" value="False"/>
-    </include>-->
-    
-    <!-- мир коридора -->
+    <!-- коридор -->
     <arg name="paused" default="false"/>
     <arg name="use_sim_time" default="true"/>
     <arg name="gui" default="true"/>
     <arg name="headless" default="false"/>
     <arg name="debug" default="false"/>
-    
     <env name="GAZEBO_MODEL_PATH" value="$(find polygone_gazebo)/models:$(optenv GAZEBO_MODEL_PATH)"/>
     
     <include file="$(find gazebo_ros)/launch/empty_world.launch">
@@ -34,7 +16,8 @@
         <arg name="use_sim_time" value="$(arg use_sim_time)"/>
         <arg name="headless" value="$(arg headless)"/>
     </include>
-    <!-- aruco marker -->
+    
+    <!-- маркер -->
     <include file="$(find polygone_aruco_objects)/launch/flat_object.launch">
         <arg name="name" value="marker"/>
         <arg name="aruco_id" value="13"/>
@@ -46,18 +29,35 @@
         <arg name="Y" value="1.04719755119"/>
     </include>
     
+    <!-- visualization -->
+    <node pkg="rviz" type="rviz" name="rviz_detection" args="-d $(find extended_object_detection)/config/eod_example.rviz" />
+    
+    <!-- маркер шевелится -->
+    <node pkg="test_robot_config" type="marker_moves.py" name="marker_moves" output="screen" />
+
+    
+    <!-- модель робота
+         этот параметр нужно прописать внутри каждого из тегов group, потому что пространства имён игнорируют внешние параметры-->
+    <param name="robot_description" 
+           command="$(find xacro)/xacro --inorder '$(find test_robot_description)/urdf/test_robot.urdf.xacro'"/>
+    <!-- входной топик: -->
+    <!-- выходной топик: -->
+    <node pkg="robot_state_publisher" type="robot_state_publisher" name="robot_state_publisher"/>
+    <!-- перекидывает одометрию откуда-то в тф -->
+    <node pkg="odom_gazebo_republisher" type="odom_republisher.py" name="odometry_tf_republisher">
+        <remap from="odom" to="/mobile_base_controller/odom"/>
+    </node>
+    
+    
+    <!-- загружает модель -->
     <node pkg="gazebo_ros" type="spawn_model" name="spawn_urdf" 
           args="-param robot_description -urdf -x 0 -y 0 -z 0.1 -R 0 -P 0 -Y 3.14 -model test_robot" />
     
     <rosparam file="$(find test_robot_config)/config/control.yaml" command="load" />
-    
+    <!-- загружает контроллеры -->
     <node pkg="controller_manager" type="spawner" name="controller_spawner" 
           respawn="false" output="screen"
           args="joint_state_controller mobile_base_controller camera_yaw_controller" />
-    
-    <!--<node name="controller_spawner" pkg="controller_manager" type="spawner" 
-    respawn="false" output="screen" 
-    args="camera_yaw_controller" />-->
     
     <!-- база данных объектов распознавания -->
     <arg name="objectBasePath" default="$(find extended_object_detection)/config/object_base_example/ObjectBaseExample.xml"/>
@@ -80,34 +80,27 @@
         <remap from="camera/info" to="/camera1/camera_info"/>
     </node>
     
-    <!--<node pkg="rqt_service_caller" type="rqt_service_caller" name="rqt_service_caller"/>-->
-    
-    <!--<node pkg="rviz" type="rviz" name="rviz" args="-d $(find test_robot_config)/rviz/test_robot.rviz" required="true" />-->
-    
-    <!-- visualization -->
-    <node pkg="rviz" type="rviz" name="rviz_detection" args="-d $(find extended_object_detection)/config/eod_example.rviz" />
     
     
+    <!-- трекер -->
     <node pkg="object_spatial_tools_ros" type="robot_kf_undirected_object_tracker_node.py" name="robot_kf_undirected_object_tracker" output="screen">
         <!--<remap from="simple_objects" to="/extended_object_detection/simple_objects"/>-->
         <remap from="simple_objects" to="simple_objects_true"/>
         <rosparam param="tracked_objects_type_names">[Aruco4]</rosparam>
         <rosparam param="mahalanobis_max">[10]</rosparam>
         <rosparam param="k_decay">0.8</rosparam>
-        <!--<rosparam param="tracked_objects_id">[{Aruco4: 13}]</rosparam>-->
     </node>
-    <!-- я не знаю что тут происходит но эта штука отображает в rviz оси координат ?камеры-->
-    <!--<node pkg="tf" type="static_transform_publisher" name="static_cam_pub"
-    args="0 0 0 -1.57 0 -1.57 map cam_optical_link 100"/>-->
     
+    <!-- центр принятия решений -->
     <node pkg="test_robot_config" type="reach_the_point.py" name="reach_the_point" output="screen">
         <rosparam param="shift_back">1.0</rosparam>
         <rosparam param="shift_right">0.0</rosparam>
     </node>
+    <!-- вытаскивает позицию и ориентацию цели из /tf в /destination -->
     <node pkg="test_robot_config" type="estimate_dest.py" name="estimate_dest" output="screen" />
-    <node pkg="test_robot_config" type="dist_modifier.py" name="dist_modifier" output="screen" />
-    <node pkg="test_robot_config" type="marker_moves.py" name="marker_moves" output="screen" />
     
-    <!--<node pkg="test_robot_config" type="detect_the_marker.py" name="detect_the_marker" output="screen"/>-->
+    <!-- исправляет результат, полученный системой распознавания, записывает в /simple_objects_true -->
+    <node pkg="test_robot_config" type="dist_modifier.py" name="dist_modifier" output="screen" />
+    
     
 </launch>
