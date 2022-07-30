@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+    
+    <!--<arg name="namespace" default="robot_left"/>
+
+    <arg name="x" default="0"/>
+    <arg name="y" default="0"/>    
+    <arg name="Y" default="0"/> -->
+    <arg name="objectBasePath" default=""/>
+    <!-- модель робота -->
+    <!-- запускается -->
+    <param name="robot_description" 
+        command="$(find xacro)/xacro --inorder '$(find test_robot_description)/urdf/test_robot.urdf.xacro' namespace:='/robot_left'"/>
+    <node pkg="robot_state_publisher" type="robot_state_publisher" name="robot_state_publisher"/>
+    
+    <!-- перекидывает одометрию откуда-то в тф -->
+    <node pkg="odom_gazebo_republisher" type="odom_republisher.py" name="odometry_tf_republisher">
+        <remap from="odom" to="/mobile_base_controller/odom"/>
+    </node>
+        
+        <!-- загружает модель -->
+    <!-- запускается -->
+    <node pkg="gazebo_ros" type="spawn_model" name="spawn_urdf" 
+        args="-param robot_description -urdf -x 0 -y 0 -z 0.1 -R 0 -P 0 -Y 3.14 -model test_robot" />
+    
+    <rosparam file="$(find test_robot_config)/config/control.yaml" command="load" />
+        
+    <!-- загружает контроллеры -->
+    <!-- запускается -->
+    <node pkg="controller_manager" type="spawner" name="controller_spawner" 
+        respawn="false" output="screen"
+        args="joint_state_controller mobile_base_controller camera_yaw_controller" />
+    
+    <!-- система распознавания -->
+    <node pkg="extended_object_detection" type="extended_object_detection_node" name="extended_object_detection" output="screen" required="true">
+        
+        <param name="objectBasePath" value="$(arg objectBasePath)"/>
+        <param name="videoProcessUpdateRate" value="5"/>
+        <param name="screenOutput" value="false"/>
+        <param name="publishImage" value="true"/>
+        <param name="publishMarkers" value="true"/>
+        <param name="subscribeDepth" value="false"/>        
+        <param name="maxContourPoints" value="-1"/>        
+    
+        <rosparam param="selectedOnStartSimple">[41, 42, 43, 44, 45, 46]</rosparam>
+        <rosparam param="selectedOnStartComplex">[]</rosparam>
+    
+        <remap from="camera/image_raw" to="/camera1/image_raw"/>
+        <remap from="camera/info" to="/camera1/camera_info"/>
+    </node>
+        
+    <!-- трекер -->
+    <node pkg="object_spatial_tools_ros" type="robot_kf_undirected_object_tracker_node.py" name="robot_kf_undirected_object_tracker" output="screen">
+        <!--<remap from="simple_objects" to="/extended_object_detection/simple_objects"/>-->
+        <remap from="simple_objects" to="simple_objects_true"/>
+        <rosparam param="tracked_objects_type_names">[Aruco4]</rosparam>
+        <rosparam param="mahalanobis_max">[10]</rosparam>
+        <rosparam param="k_decay">0.8</rosparam>
+        <rosparam param="tf_pub_prefix">robot_left</rosparam>
+    </node>
+    
+    <!-- центр принятия решений -->
+    <!-- запускается -->
+    <node pkg="test_robot_config" type="reach_the_point.py" name="reach_the_point" output="screen">
+        <rosparam param="shift_back">1.0</rosparam>
+        <rosparam param="shift_right">0.0</rosparam>
+    </node>
+    <!-- вытаскивает позицию и ориентацию цели из /tf в /destination -->
+    <node pkg="test_robot_config" type="estimate_dest.py" name="estimate_dest" output="screen" />
+    
+    <!-- исправляет результат, полученный системой распознавания, записывает в /simple_objects_true -->
+    <node pkg="test_robot_config" type="dist_modifier.py" name="dist_modifier" output="screen">
+        <!--<rosparam param="topic_prefix">robot_left</rosparam>-->
+    </node>
+    
+</launch>

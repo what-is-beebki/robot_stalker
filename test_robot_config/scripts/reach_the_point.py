@@ -57,8 +57,9 @@ class robot_stalker(object):
                                             
         self.odom_sub = rospy.Subscriber('/mobile_base_controller/odom', Odometry, self.cb_odom)
         self.cam_pos_sub = rospy.Subscriber('/joint_states', JointState, self.cb_cam_pos)
-        self.dest_sub = rospy.Subscriber('/destination', Transform, self.cb_dest) #координаты в odom
-        self.tf_broadcaster = tf2_ros.TransformBroadcaster()
+        self.dest_sub = rospy.Subscriber('/destination', Transform, self.cb_dest) #положение и ориентация маркера в odom
+        
+        self.tf_broadcaster = tf2_ros.TransformBroadcaster() # посылаем в tf точку, в которой тобот должен находиться, чтобы преследовать маркер
         
         self.timer = rospy.Timer(rospy.Duration(0.1), self.cb_timer)
         

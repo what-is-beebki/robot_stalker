@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+    
+    
+    
+    <!-- коридор -->
+    <arg name="paused" default="false"/>
+    <arg name="use_sim_time" default="true"/>
+    <arg name="gui" default="true"/>
+    <arg name="headless" default="false"/>
+    <arg name="debug" default="false"/>
+    <env name="GAZEBO_MODEL_PATH" value="$(find polygone_gazebo)/models:$(optenv GAZEBO_MODEL_PATH)"/>
+    
+    <include file="$(find gazebo_ros)/launch/empty_world.launch">
+        <arg name="world_name" value="$(find polygone_gazebo)/worlds/polygone.world"/>
+        <arg name="debug" value="$(arg debug)" />
+        <arg name="gui" value="$(arg gui)" />
+        <arg name="paused" value="$(arg paused)"/>
+        <arg name="use_sim_time" value="$(arg use_sim_time)"/>
+        <arg name="headless" value="$(arg headless)"/>
+    </include>
+    
+    <!-- маркер -->
+    <include file="$(find polygone_aruco_objects)/launch/flat_object.launch">
+        <arg name="name" value="marker"/>
+        <arg name="aruco_id" value="13"/>
+        <arg name="x" value="4."/>
+        <arg name="y" value="0."/>
+        <arg name="z" value="0.2"/>
+        <arg name="R" value="0"/>
+        <arg name="P" value="0"/>
+        <arg name="Y" value="1.04719755119"/>
+    </include>
+    
+    <!-- visualization -->
+    <node pkg="rviz" type="rviz" name="rviz_detection" args="-d $(find extended_object_detection)/config/eod_example.rviz" />
+    
+    <!-- маркер шевелится -->
+    <node pkg="test_robot_config" type="marker_moves.py" name="marker_moves" output="screen" />
+
+    
+    <group ns="robot_left">
+        <include file="$(find test_robot_config)/launch/single_robot.launch">
+            <!-- база данных объектов распознавания -->
+            <arg name="objectBasePath" default="$(find extended_object_detection)/config/object_base_example/ObjectBaseExample.xml"/>
+            
+        </include>
+    </group>
+       
+</launch>
