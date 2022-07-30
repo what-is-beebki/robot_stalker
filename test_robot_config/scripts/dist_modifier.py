@@ -8,11 +8,10 @@ from extended_object_detection.msg import SimpleObjectArray, SimpleObject
 
 class Modifier(object):
     def __init__(self):
-        prefix = rospy.get_param('~topic_prefix', "/")
-        self.simple_obj_sub = rospy.Subscriber('{}extended_object_detection/simple_objects'.format(prefix), SimpleObjectArray, self.simple_obj_sub_cb)
+        self.simple_obj_sub = rospy.Subscriber('extended_object_detection/simple_objects', SimpleObjectArray, self.simple_obj_sub_cb)
         
         self.modified_msg = SimpleObjectArray()
-        self.dest_pub = rospy.Publisher('{}simple_objects_true'.format(prefix), SimpleObjectArray, queue_size=1)
+        self.dest_pub = rospy.Publisher('simple_objects_true', SimpleObjectArray, queue_size=1)
         
         self.marker_size = rospy.get_param('~marker_size', 0.4)
         self.hori_fov = rospy.get_param('~horizontal_fov', 1.396264)

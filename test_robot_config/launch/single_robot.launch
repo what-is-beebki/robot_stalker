@@ -13,11 +13,7 @@
         command="$(find xacro)/xacro --inorder '$(find test_robot_description)/urdf/test_robot.urdf.xacro' namespace:='/robot_left'"/>
     <node pkg="robot_state_publisher" type="robot_state_publisher" name="robot_state_publisher"/>
     
-    <!-- перекидывает одометрию откуда-то в тф -->
-    <node pkg="odom_gazebo_republisher" type="odom_republisher.py" name="odometry_tf_republisher">
-        <remap from="odom" to="/mobile_base_controller/odom"/>
-    </node>
-        
+    
         <!-- загружает модель -->
     <!-- запускается -->
     <node pkg="gazebo_ros" type="spawn_model" name="spawn_urdf" 
@@ -31,6 +27,11 @@
         respawn="false" output="screen"
         args="joint_state_controller mobile_base_controller camera_yaw_controller" />
     
+    <!-- перекидывает одометрию откуда-то в тф -->
+    <node pkg="odom_gazebo_republisher" type="odom_republisher.py" name="odometry_tf_republisher">
+        <remap from="odom" to="mobile_base_controller/odom"/>
+    </node>
+        
     <!-- система распознавания -->
     <node pkg="extended_object_detection" type="extended_object_detection_node" name="extended_object_detection" output="screen" required="true">
         
@@ -45,8 +46,8 @@
         <rosparam param="selectedOnStartSimple">[41, 42, 43, 44, 45, 46]</rosparam>
         <rosparam param="selectedOnStartComplex">[]</rosparam>
     
-        <remap from="camera/image_raw" to="/camera1/image_raw"/>
-        <remap from="camera/info" to="/camera1/camera_info"/>
+        <remap from="camera/image_raw" to="camera1/image_raw"/>
+        <remap from="camera/info" to="camera1/camera_info"/>
     </node>
         
     <!-- трекер -->

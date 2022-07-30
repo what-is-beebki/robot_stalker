@@ -9,11 +9,11 @@ from tf.msg import tfMessage
 class Filter(object):
     def __init__(self):
                 
-        self.tf_sub = rospy.Subscriber('/tf', tfMessage, self.cb_for_tf_sub)
+        self.tf_sub = rospy.Subscriber('tf', tfMessage, self.cb_for_tf_sub)
         
         self.marker_trans = Transform() #позиция и ориентация маркера в odom
         
-        self.dest_pub = rospy.Publisher('/destination', Transform, queue_size=1)
+        self.dest_pub = rospy.Publisher('destination', Transform, queue_size=1)
         
     def cb_for_tf_sub(self, msg):
         for obj in msg.transforms:
