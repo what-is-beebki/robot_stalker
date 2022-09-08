@@ -43,8 +43,25 @@
         <include file="$(find test_robot_config)/launch/single_robot.launch">
             <!-- база данных объектов распознавания -->
             <arg name="objectBasePath" default="$(find extended_object_detection)/config/object_base_example/ObjectBaseExample.xml"/>
-            
+            <arg name="namespc" value="/robot_left"/>
+            <arg name="name" value="robot_left"/>
+            <arg name="x" value="0"/>
+            <arg name="y" value="1"/>
+            <arg name="Y" value="3"/>
+            <arg name="shift_back" value="1"/>
+            <arg name="shift_right" value="-1"/>
         </include>
     </group>
-       
+    <group ns="robot_right">
+        <include file="$(find test_robot_config)/launch/single_robot.launch">
+            <arg name="objectBasePath" default="$(find extended_object_detection)/config/object_base_example/ObjectBaseExample.xml"/>
+            <arg name="namespc" value="/robot_right"/>
+            <arg name="name" value="robot_right"/>
+            <arg name="x" value="0"/>
+            <arg name="y" value="-1"/>
+            <arg name="Y" value="-3"/>
+            <arg name="shift_back" value="1"/>
+            <arg name="shift_right" value="1"/>
+        </include>
+    </group>
 </launch>

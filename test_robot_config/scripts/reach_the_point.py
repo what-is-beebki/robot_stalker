@@ -117,7 +117,11 @@ class robot_stalker(object):
                 
         t.header.stamp = rospy.Time.now()
         t.header.frame_id = 'odom'
-        t.child_frame_id = 'target_pos'
+        ns = rospy.get_namespace()
+        if ns != '':
+            t.child_frame_id = ns + 'target_pos'
+        else:
+            t.child_frame_id = 'target_pos'
         
         t.transform.translation.x = self.target_odom_x
         t.transform.translation.y = self.target_odom_y
