@@ -15,7 +15,7 @@ class ObjMover(object):
         self.base_msg.pose.position.z = rospy.get_param('~height', 0.2)
         
         #параметры окружности, вдоль которой движется джентльмен
-        self.center = [3, -3.]
+        self.center = [3., -3.]
         self.radius = 3.
         self.speed = 0.2   # скорость
         self.koef = self.speed / self.radius

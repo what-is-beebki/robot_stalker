@@ -40,6 +40,7 @@
 
     
     <group ns="robot_left">
+        <param name="tf_prefix" value="robot_left" />
         <include file="$(find test_robot_config)/launch/single_robot.launch">
             <!-- база данных объектов распознавания -->
             <arg name="objectBasePath" default="$(find extended_object_detection)/config/object_base_example/ObjectBaseExample.xml"/>
@@ -53,6 +54,7 @@
         </include>
     </group>
     <group ns="robot_right">
+        <param name="tf_prefix" value="robot_right" />
         <include file="$(find test_robot_config)/launch/single_robot.launch">
             <arg name="objectBasePath" default="$(find extended_object_detection)/config/object_base_example/ObjectBaseExample.xml"/>
             <arg name="namespc" value="/robot_right"/>

@@ -19,7 +19,7 @@ class Filter(object):
         
     def cb_for_tf_sub(self, msg):
         for obj in msg.transforms:
-            if obj.header.frame_id == 'odom' and obj.child_frame_id == self.tf_prefix + "/" + "Aruco4_0":
+            if obj.header.frame_id == self.tf_prefix[1:] + "/" + 'odom' and obj.child_frame_id == self.tf_prefix + "/" + "Aruco4_0":
                 #правильнее было бы прикрутить какую-нибудь штуку, сравнивающую строки, т. к. индекс '0' может меняться
                 #self.temp_pub.publish(obj)
                 self.marker_trans = obj.transform

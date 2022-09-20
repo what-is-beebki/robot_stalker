@@ -107,7 +107,10 @@ class Actions(object):
             
         elif state == 'moving':
         #движение вперёд (зачем?)
-        
+            cam_err = angle_diff(to_marker_angle, cam_angle)
+            self.cam_pos_msg.data = cam_angle + self.cam_pid(cam_err)
+            self.cam_pos_pub.publish(self.cam_pos_msg)
+            
             self.velocity_msg.angular.z = 0
             self.velocity_msg.linear.x = 0.4
             self.velocity_pub.publish(self.velocity_msg)

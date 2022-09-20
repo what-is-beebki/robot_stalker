@@ -26,6 +26,8 @@ class robot_stalker(object):
         self.fsm = FSM()
         self.act = Actions()
         
+        self.my_name = rospy.get_namespace()[1:]
+        
         self.robot_link = rospy.get_param('~robot_link', 'test_robot::base_link')        
     #координаты и ориентация робота в odom
         self.body_odom_x = 0.
@@ -116,7 +118,7 @@ class robot_stalker(object):
         t = TransformStamped()
                 
         t.header.stamp = rospy.Time.now()
-        t.header.frame_id = 'odom'
+        t.header.frame_id = self.my_name + 'odom'
         ns = rospy.get_namespace()
         if ns != '':
             t.child_frame_id = ns + 'target_pos'

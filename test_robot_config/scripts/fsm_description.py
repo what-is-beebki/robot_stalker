@@ -10,7 +10,6 @@ class FSM(object):
         self.is_body_directed = False   # тело ориентировано почти на цель
         self.is_goal_reached  = False   # цель приемлемо близко
         self.is_goal_far      = True    # цель неприемлемо далеко
-        self.is_ori_proper    = False   # тело ориентировано параллельно маркеру
         
         self.current_state = 'init'
             #init
@@ -77,6 +76,9 @@ class FSM(object):
                 self.current_state = 'following'
             return 
         elif self.current_state == 'following':
+            if not self.is_goal_visible:
+                self.current_state = 'search'
+                return
             if self.is_goal_far:
                 self.current_state = 'steering'
                 return

@@ -14,11 +14,10 @@
     <param name="robot_description" 
         command="$(find xacro)/xacro --inorder '$(find test_robot_description)/urdf/test_robot.urdf.xacro' namespace:=$(arg namespc)"/>
     
-<!--   этот узел устраивает мне дебош, публикуя одинаковые сообщения в tf от разных роботов   -->
     <node pkg="robot_state_publisher" type="robot_state_publisher" name="robot_state_publisher"/>
     
     
-        <!-- загружает модель -->
+    <!-- загружает модель -->
     <!-- запускается -->
     <node pkg="gazebo_ros" type="spawn_model" name="spawn_urdf" 
         args="-param robot_description -urdf -x $(arg x) -y $(arg y) -z 0.1 -R 0 -P 0 -Y $(arg Y) -model $(arg name)" />
@@ -34,8 +33,12 @@
     <!-- перекидывает одометрию откуда-то в тф -->
     <node pkg="odom_gazebo_republisher" type="odom_republisher.py" name="odometry_tf_republisher">
         <remap from="odom" to="mobile_base_controller/odom"/>
+        <param name="odom_frame" value="$(arg name)/odom"/>
+        <param name="base_frame" value="$(arg name)/base_link"/>
     </node>
         
+    <node pkg="tf" type="static_transform_publisher" name="link1_broadcaster" args="0 0 0 0 0 0 1 map $(arg name)/odom 100" />
+    
     <!-- система распознавания -->
     <node pkg="extended_object_detection" type="extended_object_detection_node" name="extended_object_detection" output="screen" required="true">
         
@@ -62,6 +65,7 @@
         <rosparam param="mahalanobis_max">[10]</rosparam>
         <rosparam param="k_decay">0.8</rosparam>
         <rosparam param="tf_pub_prefix" subst_value="True">$(arg namespc)</rosparam>
+        <rosparam param="target_frame" subst_value="True">$(arg name)/odom</rosparam>
     </node>
     
     <!-- центр принятия решений -->
